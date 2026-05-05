@@ -3,152 +3,65 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Controller Overlay</title>
-
 <style>
-body {
-  margin: 0;
-  background: transparent;
-  overflow: hidden;
-}
+body { margin:0; background:transparent; overflow:hidden; }
 
-/* activation screen */
-#start {
-  position:absolute;
-  width:100%;
-  height:100%;
-  background:rgba(0,0,0,0.6);
-  color:white;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  cursor:pointer;
-  z-index:10;
-  font-family:sans-serif;
-}
-
-/* layout */
 .wrap {
-  display:flex;
-  justify-content:space-around;
-  align-items:center;
-  height:100%;
-}
-
-/* trigger bars */
-.trigger {
-  width:150px;
-  height:8px;
-  background:#111;
-  border-radius:10px;
-  margin-bottom:10px;
-  overflow:hidden;
-}
-.fill {
-  height:100%;
-  width:0%;
-  background:#a020f0;
-  box-shadow:0 0 12px #a020f0;
+display:flex;
+justify-content:space-around;
+align-items:center;
+height:100%;
 }
 
 /* shell */
 .shell {
-  position:relative;
-  width:160px;
-  height:160px;
-  background:#dcdcdc;
-  border-radius:40px;
-  box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
-  display:flex;
-  align-items:center;
-  justify-content:center;
+position:relative;
+width:180px;
+height:140px;
+background:#e5e5e5;
+border-radius:50px;
+display:flex;
+align-items:center;
+justify-content:center;
+box-shadow: inset 0 0 15px rgba(0,0,0,0.4);
 }
 
-/* purple arc */
+/* purple glow arc */
 .shell::before {
-  content:"";
-  position:absolute;
-  width:100%;
-  height:100%;
-  border-radius:40px;
-  border:4px solid transparent;
-  border-top:4px solid #a020f0;
-  border-left:4px solid #a020f0;
-  opacity:0.8;
+content:"";
+position:absolute;
+width:100%;
+height:100%;
+border-radius:50px;
+background:linear-gradient(120deg, transparent 60%, #a020f0);
+opacity:0.8;
 }
 
-/* small X button */
-.xbtn {
-  position:absolute;
-  bottom:15px;
-  left:15px;
-  width:22px;
-  height:22px;
-  border-radius:50%;
-  border:2px solid #555;
-}
-.xbtn::before, .xbtn::after {
-  content:"";
-  position:absolute;
-  top:50%;
-  left:50%;
-  width:12px;
-  height:2px;
-  background:#555;
-}
-.xbtn::before { transform:translate(-50%,-50%) rotate(45deg); }
-.xbtn::after  { transform:translate(-50%,-50%) rotate(-45deg); }
-
+/* stick area */
 canvas {
-  position:absolute;
-}
-</style>
+position:absolute;
+} </style>
 
 </head>
 
 <body>
 
-<div id="start">CLICK TO ACTIVATE</div>
-
 <div class="wrap">
-
-  <div>
-    <div class="trigger"><div id="lt" class="fill"></div></div>
-    <div class="shell">
-      <div class="xbtn"></div>
-      <canvas id="left" width="120" height="120"></canvas>
-    </div>
-  </div>
-
-  <div>
-    <div class="trigger"><div id="rt" class="fill"></div></div>
-    <div class="shell">
-      <div class="xbtn"></div>
-      <canvas id="right" width="120" height="120"></canvas>
-    </div>
-  </div>
-
+  <div class="shell"><canvas id="l" width="120" height="120"></canvas></div>
+  <div class="shell"><canvas id="r" width="120" height="120"></canvas></div>
 </div>
 
 <script>
-const deadzone = 0.15;
-const triggerDeadzone = 0.05;
+const deadzone = 0.12;
+let smooth = {lx:0, ly:0, rx:0, ry:0};
 
-let active = false;
-
-document.getElementById("start").onclick = () => {
-  active = true;
-  document.getElementById("start").style.display = "none";
-};
-
-function draw(canvas, x, y) {
-  const ctx = canvas.getContext("2d");
-  const c = 60;
-  const r = 45;
+function draw(cvs, x, y) {
+  const ctx = cvs.getContext("2d");
+  const c = 60, r = 50;
 
   ctx.clearRect(0,0,120,120);
 
-  // black base
+  // black circle
   ctx.beginPath();
   ctx.arc(c,c,r,0,Math.PI*2);
   ctx.fillStyle="black";
@@ -161,29 +74,21 @@ function draw(canvas, x, y) {
   ctx.stroke();
 
   let mag = Math.sqrt(x*x+y*y);
-
-  if (mag < deadzone) {
-    x=0;y=0;
-  } else {
-    let adj = (mag-deadzone)/(1-deadzone);
-    x=(x/mag)*adj;
-    y=(y/mag)*adj;
-  }
+  if (mag < deadzone) { x=0; y=0; }
 
   let dx = c + x*r;
   let dy = c + y*r;
 
-  // purple line
+  // line
   ctx.beginPath();
   ctx.moveTo(c,c);
   ctx.lineTo(dx,dy);
   ctx.strokeStyle="#a020f0";
   ctx.lineWidth=3;
   ctx.shadowColor="#a020f0";
-  ctx.shadowBlur=12;
+  ctx.shadowBlur=15;
   ctx.stroke();
 
-  // dot
   ctx.beginPath();
   ctx.arc(dx,dy,4,0,Math.PI*2);
   ctx.fillStyle="#a020f0";
@@ -191,31 +96,21 @@ function draw(canvas, x, y) {
 }
 
 function loop() {
-  let gp = active ? navigator.getGamepads()[0] : null;
-
-  let lx=0,ly=0,rx=0,ry=0,lt=0,rt=0;
+  let gp = navigator.getGamepads()[0];
 
   if (gp) {
-    lx = gp.axes[0];
-    ly = gp.axes[1];
-    rx = gp.axes[2];
-    ry = gp.axes[3];
-    lt = gp.buttons[6]?.value || 0;
-    rt = gp.buttons[7]?.value || 0;
+    // smoothing (important for video look)
+    smooth.lx += (gp.axes[0]-smooth.lx)*0.2;
+    smooth.ly += (gp.axes[1]-smooth.ly)*0.2;
+    smooth.rx += (gp.axes[2]-smooth.rx)*0.2;
+    smooth.ry += (gp.axes[3]-smooth.ry)*0.2;
   }
 
-  draw(left, lx, ly);
-  draw(right, rx, ry);
-
-  lt = lt<triggerDeadzone ? 0 : (lt-triggerDeadzone)/(1-triggerDeadzone);
-  rt = rt<triggerDeadzone ? 0 : (rt-triggerDeadzone)/(1-triggerDeadzone);
-
-  document.getElementById("lt").style.width = (lt*100)+"%";
-  document.getElementById("rt").style.width = (rt*100)+"%";
+  draw(l, smooth.lx, smooth.ly);
+  draw(r, smooth.rx, smooth.ry);
 
   requestAnimationFrame(loop);
 }
-
 loop();
 </script>
 
